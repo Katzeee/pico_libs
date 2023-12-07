@@ -15,10 +15,12 @@ function(create_test test_name)
     GTest::gtest_main
   )
   gtest_discover_tests(${test_name}_test)
+  add_test(NAME ${test_name}_test COMMAND ${test_name}_test)
 endfunction()
 
 if(BUILD_TESTING)
   create_test(mpl)
   target_link_libraries(mpl_test pico_libs::mpl)
   create_test(ecs)
+  target_link_libraries(ecs_test pico_libs::ecs)
 endif()
