@@ -1,23 +1,24 @@
 project(test)
 
 include(GoogleTest)
-function(add_test name)
+
+function(create_test test_name)
   file(
     GLOB_RECURSE 
-    ${name}_test 
+    ${test_name}_test 
     COFIGURE_DEPENDS 
-    ${name}_test.cpp
+    ${test_name}_test.cpp
   )
-  add_executable(${name}_test ${${name}_test})
+  add_executable(${test_name}_test ${${test_name}_test})
   target_link_libraries(
-    ${name}_test
+    ${test_name}_test
     GTest::gtest_main
   )
-  gtest_discover_tests(${name}_test)
+  gtest_discover_tests(${test_name}_test)
 endfunction()
 
-if(ENABLE_TEST)
-  add_test(mpl)    
+if(BUILD_TESTING)
+  create_test(mpl)
   target_link_libraries(mpl_test pico_libs::mpl)
-  add_test(ecs)    
+  create_test(ecs)
 endif()
