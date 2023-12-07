@@ -18,5 +18,6 @@ endfunction()
 
 if(ENABLE_TEST)
   add_test(mpl)    
+  target_link_libraries(mpl_test pico_libs::mpl)
   add_test(ecs)    
 endif()
