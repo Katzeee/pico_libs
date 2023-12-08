@@ -98,6 +98,7 @@ class World {
   auto create() -> EntityId;
   template <typename T, typename... Args>
   auto assign(EntityId &id, Args &&...args) -> std::shared_ptr<ComponentHandle>;
+  // TODO: use if constexpr to filter F
   template <typename F>
   auto each(F &&f);
   template <typename... Args>

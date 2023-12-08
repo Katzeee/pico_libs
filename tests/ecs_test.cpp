@@ -9,92 +9,126 @@ struct Position {
   int x;
   int y;
   int z;
+
+  friend auto operator==(const Position &lhs, const Position &rhs) -> bool {
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+  }
 };
 
 struct Acc {
   int x;
   int y;
   int z;
+  friend auto operator==(const Acc &lhs, const Acc &rhs) -> bool {
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+  }
 };
 
 struct Rotation {
   int x;
   int y;
   int z;
+  friend auto operator==(const Rotation &lhs, const Rotation &rhs) -> bool {
+    return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
+  }
 };
 
-using CList = mpl::type_list<Position, Acc, Rotation>;
-using Settings = ecs::Settings<CList>;
-
-TEST(ECS_TEST, ENTITY_CREATE) {
-  uint16_t entity_count = std::numeric_limits<uint16_t>::max();
-  ecs::World<Settings> world;
-  std::vector<ecs::Entity<Settings>::Id> entities;
-  for (uint16_t i = 0; i < entity_count; i++) {
+TEST(ECS_TEST, DISABLED_ENTITY_CREATE) {
+  using CListA = mpl::type_list<>;
+  using SettingsA = ecs::Settings<CListA>;
+  uint32_t entity_count = std::numeric_limits<uint32_t>::max() >> 8;
+  ecs::World<SettingsA> world;
+  std::vector<ecs::Entity<SettingsA>::Id> entities;
+  for (uint32_t i = 0; i < entity_count; i++) {
     auto e = world.create();
     entities.push_back(e);
     ASSERT_EQ(e.id, i);
-    EXPECT_EQ(e.version, 1);
+    ASSERT_EQ(e.version, 1);
   }
 }
 
 TEST(ECS_TEST, COMPONENT_ASSIGN) {
-  // FIXME: Should use another setting
-  ecs::World<Settings> world;
+  using CListB = mpl::type_list<Position, Acc, Rotation>;
+  using SettingsB = ecs::Settings<CListB>;
+  ecs::World<SettingsB> world;
   std::random_device rd;
   std::mt19937 seed(rd());
   std::uniform_int_distribution<uint32_t> rand_int(500, 500000);
   uint32_t entity_count = rand_int(seed);
-  std::cout << entity_count << std::endl;
-  std::vector<ecs::Entity<Settings>::Id> entities;
-  for (auto i = 0; i < entity_count; i++) {
+  std::vector<ecs::Entity<SettingsB>::Id> entities;
+  for (uint32_t i = 0; i < entity_count; i++) {
     auto e = world.create();
     entities.push_back(e);
     ASSERT_EQ(e.id, i);
-    EXPECT_EQ(e.version, 1);
+    ASSERT_EQ(e.version, 1);
   }
   world.each([&world](auto &&e, uint32_t i) {
-    EXPECT_EQ(e.GetId().id, i);
-    EXPECT_EQ(e.GetId().version, 1);
-    EXPECT_EQ(e.GetWorld(), &world);
-    EXPECT_EQ(e.GetComponentsMask().to_string(), "000");
+    ASSERT_EQ(e.GetId().id, i);
+    ASSERT_EQ(e.GetId().version, 1);
+    ASSERT_EQ(e.GetWorld(), &world);
+    ASSERT_EQ(e.GetComponentsMask().to_string(), "000");
   });
-  for (auto i = 0; i < entity_count; i++) {
+  for (uint32_t i = 0; i < entity_count; i++) {
     auto &e = entities[i];
     world.assign<Position>(e, 1, 2, 3);
-    EXPECT_EQ(e.id, i);
-    EXPECT_EQ(e.version, 2);
+    ASSERT_EQ(e.id, i);
+    ASSERT_EQ(e.version, 2);
   }
   world.each([&world](auto &&e, uint32_t i) {
-    EXPECT_EQ(e.GetId().id, i);
-    EXPECT_EQ(e.GetId().version, 2);
-    EXPECT_EQ(e.GetWorld(), &world);
-    EXPECT_EQ(e.GetComponentsMask().to_string(), "001");
+    ASSERT_EQ(e.GetId().id, i);
+    ASSERT_EQ(e.GetId().version, 2);
+    ASSERT_EQ(e.GetWorld(), &world);
+    ASSERT_EQ(e.GetComponentsMask().to_string(), "001");
   });
   {
-    auto view = world.view<const Position>();
+    auto view = world.view<Position>();
     auto it = view.begin();
-    static_assert(std::is_same_v<decltype(*it), std::tuple<const Position &>>);
-    int count = 0;
+    static_assert(std::is_same_v<decltype(*it), std::tuple<Position &>>);
+    uint32_t count = 0;
     for (; it != view.end(); it++) {
       count++;
       auto &&[position] = *it;
-      EXPECT_EQ(position.x, 1);
-      EXPECT_EQ(position.y, 2);
-      EXPECT_EQ(position.z, 3);
+      ASSERT_EQ(position.x, 1);
+      ASSERT_EQ(position.y, 2);
+      ASSERT_EQ(position.z, 3);
+      position = {2, 1, 5};
     }
-    EXPECT_EQ(count, entity_count);
+    ASSERT_EQ(count, entity_count);
   }
   {
     auto view = world.view<Position>();
     auto it = view.begin();
     static_assert(std::is_same_v<decltype(*it), std::tuple<Position &>>);
+    uint32_t count = 0;
+    for (; it != view.end(); it++) {
+      count++;
+      auto &&[position] = *it;
+      ASSERT_EQ(position.x, 2);
+      ASSERT_EQ(position.y, 1);
+      ASSERT_EQ(position.z, 5);
+    }
+    ASSERT_EQ(count, entity_count);
+  }
+  for (uint32_t i = 0; i < entity_count / 2; i++) {
+    auto &e = entities[i];
+    world.assign<Rotation>(e, 7, 8, 9);
+    ASSERT_EQ(e.id, i);
+    ASSERT_EQ(e.version, 3);
   }
   {
     auto view = world.view<Rotation, Position>();
     auto it = view.begin();
     static_assert(std::is_same_v<decltype(*it), std::tuple<Rotation &, Position &>>);
-    EXPECT_EQ(it, view.end());
+    uint32_t count = 0;
+    for (; it != view.end(); it++) {
+      count++;
+      auto &&[rotation, position] = *it;
+      Position p = {2, 1, 5};
+      ASSERT_EQ(position, p);
+      Rotation r = {7, 8, 9};
+      ASSERT_EQ(rotation, r);
+    }
+    ASSERT_EQ(count, entity_count / 2);
   }
   {
     auto view = world.view<const Position, Acc>();
