@@ -6,22 +6,22 @@ namespace xac::mpl {
 
 template <typename... Args>
 struct type_list {
-  constexpr static uint32_t size = sizeof...(Args);
+  constexpr static uint64_t size = sizeof...(Args);
 };
 
 template <typename T, typename TList>
 struct index_of {};
 
 template <typename T, template <typename...> class TList, typename... Tail>
-struct index_of<T, TList<T, Tail...>> : std::integral_constant<uint32_t, 0> {};
+struct index_of<T, TList<T, Tail...>> : std::integral_constant<uint64_t, 0> {};
 
 template <typename T, template <typename...> class TList, typename Head, typename... Tail>
-struct index_of<T, TList<Head, Tail...>> : std::integral_constant<uint32_t, index_of<T, TList<Tail...>>::value + 1> {};
+struct index_of<T, TList<Head, Tail...>> : std::integral_constant<uint64_t, index_of<T, TList<Tail...>>::value + 1> {};
 
 template <typename T, typename TList>
-inline constexpr uint32_t index_of_v = index_of<T, TList>::value;
+inline constexpr uint64_t index_of_v = index_of<T, TList>::value;
 
-template <uint32_t N, typename TList>  // T can be any type, include a template type
+template <uint64_t N, typename TList>  // T can be any type, include a template type
 struct type_at;
 
 // specialization for template class T
@@ -33,12 +33,12 @@ struct type_at;
 template <template <typename...> class TList, typename Head, typename... Tail>
 struct type_at<0, TList<Head, Tail...>> : std::common_type<Head> {};
 
-template <uint32_t N, template <typename...> class TList, typename Head, typename... Tail>
+template <uint64_t N, template <typename...> class TList, typename Head, typename... Tail>
 struct type_at<N, TList<Head, Tail...>> : type_at<N - 1, TList<Tail...>> {
   static_assert(N < sizeof...(Tail) + 1, "Out of bound");
 };
 
-template <uint32_t N, typename TList>
+template <uint64_t N, typename TList>
 using type_at_t = typename type_at<N, TList>::type;
 
 namespace __detail {
@@ -62,5 +62,11 @@ struct contains<T, TList<Head, Rest...>> : contains<T, TList<Rest...>> {};
 
 template <typename T, typename TList>
 inline constexpr bool contains_v = contains<T, TList>::value;
+
+template <uint64_t... I>
+struct index_sequence : std::integral_constant<uint64_t, ((1 << I) | ...)> {};
+
+template <uint64_t... I>
+inline constexpr uint64_t index_sequence_v = index_sequence<I...>::value;
 
 }  // namespace xac::mpl
