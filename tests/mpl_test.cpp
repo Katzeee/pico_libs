@@ -1,13 +1,18 @@
+#include <experimental/type_traits>
 #include <type_list.hpp>
+// #include <utility>
 using namespace xac;
 
 #include "gtest/gtest.h"
+
+template <typename T>
+using detect_value = typename T::value_type;
 
 TEST(MPL_TEST, TYPE_LIST) {
   using TestTypeList = mpl::type_list<int, bool, double>;
   using TestTuple = std::tuple<int, bool, double>;
 
-  // static_assert(mpl::index_of_v<int, mpl::type_list<>>);    // won't compile
+  static_assert(!std::experimental::is_detected_v<detect_value, mpl::index_of<int, mpl::type_list<> > >);
   // static_assert(mpl::index_of<int, mpl::type_list<bool>>);  // won't compile
   static_assert(mpl::index_of_v<int, TestTypeList> == 0);
   static_assert(mpl::index_of_v<bool, TestTypeList> == 1);
