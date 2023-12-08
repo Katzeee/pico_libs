@@ -29,15 +29,14 @@ class World {
   World();
   auto create() -> EntityId;
   template <typename T, typename... Args>
-  auto assign(EntityId &id, Args... args) -> std::shared_ptr<ComponentHandle>;
+  auto assign(EntityId &id, Args &&...args) -> std::shared_ptr<ComponentHandle>;
   template <typename F>
   auto each(F &&f);
 
  private:
   auto prepare_entity_create() -> void;
   template <typename T>
-  auto prepare_component_create(uint32_t id) -> void;
-  auto invalidate(EntityId id) -> void;
+  auto prepare_component_create(const EntityId &id) -> void;
 
  private:
   mpl::rename<TupleOfVectors, ComponentList> components_pool_;
@@ -53,6 +52,9 @@ template <typename TSettings>
 World<TSettings>::World() {
   entities_.resize(kInitSize);
   entity_version_.resize(kInitSize);
+  // for (uint32_t i = 0; i < ComponentList::size; i++) {
+  //   std::get<0>(components_pool_).resize(kInitSize);
+  // }
 }
 
 // TODO: reuse id
@@ -69,16 +71,17 @@ auto World<TSettings>::create() -> EntityId {
 
 template <typename TSettings>
 template <typename T, typename... Args>
-auto World<TSettings>::assign(EntityId &id, Args... args) -> std::shared_ptr<ComponentHandle> {
+auto World<TSettings>::assign(EntityId &id, Args &&...args) -> std::shared_ptr<ComponentHandle> {
   static_assert(TSettings::template has_component<T>(), "type is not in component list");
-  invalidate(id);
-  prepare_component_create<T>(id.id);
+  prepare_component_create<T>(id);
   auto &entity = entities_[id.id];
   auto &real_version = entity_version_[id.id];
   real_version++;
   id.version = real_version;
   entity.id_ = id;
   entity.components_mask_.set(mpl::index_of_v<T, ComponentList>);
+  auto &pool = std::get<mpl::index_of_v<T, ComponentList>>(components_pool_);
+  pool[id.id] = T{std::forward<Args>(args)...};
   return nullptr;
 }
 
@@ -86,28 +89,29 @@ template <typename TSettings>
 template <typename F>
 auto World<TSettings>::each(F &&f) {
   for (uint32_t i = 0; i < entity_count_; i++) {
-    std::invoke(f, entities_[i]);
+    std::invoke(f, entities_[i], i);
   }
 }
 
 template <typename TSettings>
-auto World<TSettings>::invalidate(EntityId id) -> void {
-  auto eid = id.id;
-  auto eversion = id.version;
-  assert(entities_[eid].id_.version == eversion && "This id is out of date");
-  assert(entity_version_[eid] == eversion && "This id is out of date");
-}
-
-template <typename TSettings>
 template <typename T>
-auto World<TSettings>::prepare_component_create(uint32_t id) -> void {
-  auto a = std::get<mpl::index_of_v<T, ComponentList>>(components_pool_);
+auto World<TSettings>::prepare_component_create(const EntityId &id) -> void {
+  auto entity = entities_[id.id];
+  assert(entity.id_.version == id.version && "This id is out of date");
+  assert(entity_version_[id.id] == id.version && "This entity is dead");
+  assert(!entity.components_mask_.test(mpl::index_of_v<T, ComponentList>));
+  auto &pool = std::get<mpl::index_of_v<T, ComponentList>>(components_pool_);
+  if (entity_count_ >= pool.size()) {
+    // FIX: may out of bound
+    pool.resize(entity_count_ * 2);
+  }
 }
 
 template <typename TSettings>
 auto World<TSettings>::prepare_entity_create() -> void {
   assert(entities_.size() == entity_version_.size());
   if (entity_count_ >= entities_.size()) {
+    // FIX: may out of bound
     entities_.resize(entity_count_ * 2);  // HINT: must be resize, because you will use index
     entity_version_.resize(entity_count_ * 2);
   }

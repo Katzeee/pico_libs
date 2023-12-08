@@ -15,22 +15,41 @@ struct Acc {
   int z;
 };
 
-using CList = mpl::type_list<Position, Acc>;
+struct Rotation {
+  int x;
+  int y;
+  int z;
+};
+
+using CList = mpl::type_list<Position, Acc, Rotation>;
 using Settings = ecs::Settings<CList>;
 
 static ecs::World<Settings> world;
 
 TEST(ECS_TEST, ENTITY_CREATE) {
-  auto e = world.create();
-  auto e1 = world.create();
-  world.assign<Position>(e, 1, 2, 3);
-  world.assign<Acc>(e, 1, 2, 3);
-  world.assign<Acc>(e1, 1, 2, 3);
-  world.each([](auto &&e) {
-    std::cout << "id: " << e.id_.id;
-    std::cout << ", version: " << e.id_.version;
-    std::cout << ", world: " << e.world_;
-    std::cout << ", bitset: " << e.components_mask_.to_string();
-    std::cout << std::endl;
+  std::vector<ecs::Entity<Settings>::Id> entities;
+  for (auto i = 0; i < 50000; i++) {
+    auto e = world.create();
+    entities.push_back(e);
+    EXPECT_EQ(e.id, i);
+    EXPECT_EQ(e.version, 1);
+  }
+  world.each([](auto &&e, uint32_t i) {
+    EXPECT_EQ(e.GetId().id, i);
+    EXPECT_EQ(e.GetId().version, 1);
+    EXPECT_EQ(e.GetWorld(), &world);
+    EXPECT_EQ(e.GetComponentsMask().to_string(), "000");
+  });
+  for (auto i = 0; i < 50000; i++) {
+    auto &e = entities[i];
+    world.assign<Position>(e, 1, 2, 3);
+    EXPECT_EQ(e.id, i);
+    EXPECT_EQ(e.version, 2);
+  }
+  world.each([](auto &&e, uint32_t i) {
+    EXPECT_EQ(e.GetId().id, i);
+    EXPECT_EQ(e.GetId().version, 2);
+    EXPECT_EQ(e.GetWorld(), &world);
+    EXPECT_EQ(e.GetComponentsMask().to_string(), "001");
   });
 }
