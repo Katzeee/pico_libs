@@ -70,7 +70,8 @@ TEST(ECS_TEST, COMPONENT_ASSIGN) {
   });
   for (uint32_t i = 0; i < entity_count; i++) {
     auto &e = entities[i];
-    world.assign<Position>(e, 1, 2, 3);
+    auto position = world.assign<Position>(e, 1, 2, 3);
+    static_assert(std::is_same_v<decltype(position), ecs::ComponentHandle<SettingsB, Position>>);
     ASSERT_EQ(e.id, i);
     ASSERT_EQ(e.version, 2);
   }
@@ -111,7 +112,8 @@ TEST(ECS_TEST, COMPONENT_ASSIGN) {
   }
   for (uint32_t i = 0; i < entity_count / 2; i++) {
     auto &e = entities[i];
-    world.assign<Rotation>(e, 7, 8, 9);
+    auto rotation = world.assign<Rotation>(e, 7, 8, 9);
+    static_assert(std::is_same_v<decltype(rotation), ecs::ComponentHandle<SettingsB, Rotation>>);
     ASSERT_EQ(e.id, i);
     ASSERT_EQ(e.version, 3);
   }

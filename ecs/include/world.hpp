@@ -3,7 +3,6 @@
 
 #include <algorithm>
 #include <functional>
-#include <memory>
 #include <numeric>
 #include <type_list.hpp>
 #include <vector>
@@ -24,6 +23,8 @@ class World {
   template <typename... Args>
   using TupleOfVectors = std::tuple<std::vector<Args>...>;
   using Entity = Entity<TSettings>;
+  template <typename T>
+  using ComponentHandle = ComponentHandle<TSettings, T>;
   using EntityId = typename Entity::Id;
 
   template <typename...>
@@ -97,7 +98,7 @@ class World {
   World();
   auto create() -> EntityId;
   template <typename T, typename... Args>
-  auto assign(EntityId &id, Args &&...args) -> std::shared_ptr<ComponentHandle>;
+  auto assign(EntityId &id, Args &&...args) -> ComponentHandle<T>;
   // TODO: use if constexpr to filter F
   template <typename F>
   auto each(F &&f);
@@ -114,11 +115,8 @@ class World {
   mpl::rename<TupleOfVectors, ComponentList> components_pool_;
   std::vector<Entity> entities_;
   std::vector<uint32_t> entity_version_;
-  static uint32_t entity_count_;
+  inline static uint32_t entity_count_ = 0;
 };
-
-template <typename TSettings>
-inline uint32_t World<TSettings>::entity_count_ = 0;
 
 template <typename TSettings>
 World<TSettings>::World() {
@@ -128,7 +126,7 @@ World<TSettings>::World() {
 
 // TODO: reuse id
 template <typename TSettings>
-auto World<TSettings>::create() -> EntityId {
+[[nodiscard]] auto World<TSettings>::create() -> EntityId {
   prepare_entity_create();
   auto id = EntityId{};
   id.id = entity_count_;
@@ -140,7 +138,7 @@ auto World<TSettings>::create() -> EntityId {
 
 template <typename TSettings>
 template <typename T, typename... Args>
-auto World<TSettings>::assign(EntityId &id, Args &&...args) -> std::shared_ptr<ComponentHandle> {
+[[nodiscard]] auto World<TSettings>::assign(EntityId &id, Args &&...args) -> ComponentHandle<T> {
   static_assert(TSettings::template has_component<T>(), "type is not in component list");
   prepare_component_create<T>(id);
   auto &entity = entities_.at(id.id);
@@ -151,7 +149,7 @@ auto World<TSettings>::assign(EntityId &id, Args &&...args) -> std::shared_ptr<C
   entity.components_mask_.set(mpl::index_of_v<T, ComponentList>);
   auto &pool = std::get<mpl::index_of_v<T, ComponentList>>(components_pool_);
   pool[id.id] = T{std::forward<Args>(args)...};
-  return nullptr;
+  return {id, this};
 }
 
 template <typename TSettings>
