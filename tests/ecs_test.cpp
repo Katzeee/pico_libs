@@ -33,6 +33,9 @@ struct Rotation {
   }
 };
 
+std::random_device rd;
+std::mt19937 seed(rd());
+
 TEST(ECS_TEST, DISABLED_ENTITY_CREATE) {
   using CListA = mpl::type_list<>;
   using SettingsA = ecs::Settings<CListA>;
@@ -43,41 +46,75 @@ TEST(ECS_TEST, DISABLED_ENTITY_CREATE) {
     auto e = world.create();
     entities.push_back(e);
     ASSERT_EQ(e.id, i);
-    ASSERT_EQ(e.version, 1);
+    ASSERT_EQ(e.version, 0);
   }
 }
 
-TEST(ECS_TEST, COMPONENT_ASSIGN) {
-  using CListB = mpl::type_list<Position, Acc, Rotation>;
+TEST(ECS_TEST, ENTITY_DESTROY) {
+  using CListB = mpl::type_list<int>;
   using SettingsB = ecs::Settings<CListB>;
+
+  uint32_t entity_count = std::uniform_int_distribution<uint32_t>{500000, 1000000}(seed);
+  uint32_t max_destroy_count = std::uniform_int_distribution<uint32_t>{50000, entity_count}(seed);
+  std::uniform_int_distribution<uint32_t> rand_int{0, entity_count - 1};
+
   ecs::World<SettingsB> world;
-  std::random_device rd;
-  std::mt19937 seed(rd());
-  std::uniform_int_distribution<uint32_t> rand_int(500, 500000);
-  uint32_t entity_count = rand_int(seed);
   std::vector<ecs::Entity<SettingsB>::Id> entities;
   for (uint32_t i = 0; i < entity_count; i++) {
     auto e = world.create();
     entities.push_back(e);
     ASSERT_EQ(e.id, i);
-    ASSERT_EQ(e.version, 1);
+    ASSERT_EQ(e.version, 0);
+  }
+  std::set<uint32_t> entity_destroy{};
+  for (uint32_t i = 0; i < max_destroy_count; i++) {
+    entity_destroy.insert(rand_int(seed));
+  }
+  for (auto &&i : entity_destroy) {
+    auto id = ecs::Entity<SettingsB>::Id{i, 0};
+    world.destroy(id);
+  }
+  uint32_t count = 0;
+  world.each([&world, &count](auto &&e, uint32_t i) {
+    count++;
+    ASSERT_EQ(e.GetId().id, i);
+    ASSERT_EQ(e.GetId().version, 0);
+    ASSERT_EQ(e.GetWorld(), &world);
+    ASSERT_EQ(e.GetComponentsMask().to_string(), "0");
+  });
+  ASSERT_EQ(count, entity_count - entity_destroy.size());
+}
+
+TEST(ECS_TEST, COMPONENT_ASSIGN) {
+  using CListC = mpl::type_list<Position, Acc, Rotation>;
+  using SettingsC = ecs::Settings<CListC>;
+  ecs::World<SettingsC> world;
+
+  std::uniform_int_distribution<uint32_t> rand_int(500, 500000);
+  uint32_t entity_count = rand_int(seed);
+  std::vector<ecs::Entity<SettingsC>::Id> entities;
+  for (uint32_t i = 0; i < entity_count; i++) {
+    auto e = world.create();
+    entities.push_back(e);
+    ASSERT_EQ(e.id, i);
+    ASSERT_EQ(e.version, 0);
   }
   world.each([&world](auto &&e, uint32_t i) {
     ASSERT_EQ(e.GetId().id, i);
-    ASSERT_EQ(e.GetId().version, 1);
+    ASSERT_EQ(e.GetId().version, 0);
     ASSERT_EQ(e.GetWorld(), &world);
     ASSERT_EQ(e.GetComponentsMask().to_string(), "000");
   });
   for (uint32_t i = 0; i < entity_count; i++) {
     auto &e = entities[i];
     auto position = world.assign<Position>(e, 1, 2, 3);
-    static_assert(std::is_same_v<decltype(position), ecs::ComponentHandle<SettingsB, Position>>);
+    static_assert(std::is_same_v<decltype(position), ecs::ComponentHandle<SettingsC, Position>>);
     ASSERT_EQ(e.id, i);
-    ASSERT_EQ(e.version, 2);
+    ASSERT_EQ(e.version, 0);
   }
   world.each([&world](auto &&e, uint32_t i) {
     ASSERT_EQ(e.GetId().id, i);
-    ASSERT_EQ(e.GetId().version, 2);
+    ASSERT_EQ(e.GetId().version, 0);
     ASSERT_EQ(e.GetWorld(), &world);
     ASSERT_EQ(e.GetComponentsMask().to_string(), "001");
   });
@@ -113,9 +150,9 @@ TEST(ECS_TEST, COMPONENT_ASSIGN) {
   for (uint32_t i = 0; i < entity_count / 2; i++) {
     auto &e = entities[i];
     auto rotation = world.assign<Rotation>(e, 7, 8, 9);
-    static_assert(std::is_same_v<decltype(rotation), ecs::ComponentHandle<SettingsB, Rotation>>);
+    static_assert(std::is_same_v<decltype(rotation), ecs::ComponentHandle<SettingsC, Rotation>>);
     ASSERT_EQ(e.id, i);
-    ASSERT_EQ(e.version, 3);
+    ASSERT_EQ(e.version, 0);
   }
   {
     auto view = world.view<Rotation, Position>();

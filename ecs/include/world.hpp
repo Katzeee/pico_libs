@@ -94,18 +94,49 @@ class World {
     inline static std::bitset<ComponentList::size> mask_ = std::bitset<ComponentList::size>(mask_value_);
   };
 
+  // debug view
+
  public:
   World();
   auto create() -> EntityId;
+
+  auto destroy(const EntityId &id) -> void {
+    invalidate(id);
+    entity_version_[id.id]++;
+  }
+
   template <typename T, typename... Args>
-  auto assign(EntityId &id, Args &&...args) -> ComponentHandle<T>;
+  [[nodiscard]] auto assign(EntityId &id, Args &&...args) -> ComponentHandle<T> {
+    static_assert(TSettings::template has_component<T>(), "type is not in component list");
+    prepare_component_create<T>(id);
+    auto &entity = entities_.at(id.id);
+    entity.id_ = id;
+    entity.components_mask_.set(mpl::index_of_v<T, ComponentList>);
+    auto &pool = std::get<mpl::index_of_v<T, ComponentList>>(components_pool_);
+    pool[id.id] = T{std::forward<Args>(args)...};
+    return {id, this};
+  }
+
   // TODO: use if constexpr to filter F
   template <typename F>
-  auto each(F &&f);
+  auto each(F &&f) {
+    for (uint32_t i = 0; i < entity_count_; i++) {
+      if (entity_version_[i] != entities_[i].id_.version) {
+        continue;
+      }
+      std::invoke(f, entities_[i], i);
+    }
+  }
   template <typename... Args>
   auto view() -> component_view<Args...>;
 
  private:
+  auto invalidate(const EntityId &id) -> void {
+    // TODO: freelist
+    assert(id.id < entity_count_ && "id exceed entity count");
+    assert(id.version == entity_version_[id.id] && "id out of date");
+    assert(id.version == entities_[id.id].id_.version && "id out of date");
+  }
   auto prepare_entity_create() -> void;
   template <typename T>
   auto prepare_component_create(const EntityId &id) -> void;
@@ -130,34 +161,11 @@ template <typename TSettings>
   prepare_entity_create();
   auto id = EntityId{};
   id.id = entity_count_;
-  id.version = ++entity_version_.at(entity_count_);
+  // should only increment when destroy an entity?
+  id.version = entity_version_.at(entity_count_);
   entities_.at(entity_count_) = std::move(Entity{id, this});
   entity_count_++;
   return id;
-}
-
-template <typename TSettings>
-template <typename T, typename... Args>
-[[nodiscard]] auto World<TSettings>::assign(EntityId &id, Args &&...args) -> ComponentHandle<T> {
-  static_assert(TSettings::template has_component<T>(), "type is not in component list");
-  prepare_component_create<T>(id);
-  auto &entity = entities_.at(id.id);
-  auto &real_version = entity_version_.at(id.id);
-  real_version++;
-  id.version = real_version;
-  entity.id_ = id;
-  entity.components_mask_.set(mpl::index_of_v<T, ComponentList>);
-  auto &pool = std::get<mpl::index_of_v<T, ComponentList>>(components_pool_);
-  pool[id.id] = T{std::forward<Args>(args)...};
-  return {id, this};
-}
-
-template <typename TSettings>
-template <typename F>
-auto World<TSettings>::each(F &&f) {
-  for (uint32_t i = 0; i < entity_count_; i++) {
-    std::invoke(f, entities_[i], i);
-  }
 }
 
 template <typename TSettings>
@@ -170,9 +178,8 @@ template <typename TSettings>
 template <typename T>
 auto World<TSettings>::prepare_component_create(const EntityId &id) -> void {
   auto entity = entities_[id.id];
-  assert(entity.id_.version == id.version && "This id is out of date");
-  assert(entity_version_[id.id] == id.version && "This entity is dead");
-  assert(!entity.components_mask_.test(mpl::index_of_v<T, ComponentList>));
+  invalidate(id);
+  assert(!entity.components_mask_.test(mpl::index_of_v<T, ComponentList>) && "already has this component");
   auto &pool = std::get<mpl::index_of_v<T, ComponentList>>(components_pool_);
   if (entity_count_ >= pool.size()) {
     // FIX: may out of bound
