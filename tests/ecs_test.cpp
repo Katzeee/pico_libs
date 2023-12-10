@@ -117,6 +117,8 @@ TEST(ECS_TEST, COMPONENT_ASSIGN) {
     ASSERT_EQ(e.GetId().version, 0);
     ASSERT_EQ(e.GetWorld(), &world);
     ASSERT_EQ(e.GetComponentsMask().to_string(), "001");
+    ASSERT_EQ(world.has<Position>(e.GetId()), true);
+    ASSERT_EQ(world.has<Rotation>(e.GetId()), false);
   });
   {
     auto view = world.view<Position>();

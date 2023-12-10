@@ -29,7 +29,7 @@ class World {
 
  private:
   template <typename... Args>
-  class basic_view;
+  struct basic_view;
 
   template <typename Pred, typename... Args>
   class basic_iterator {  // HINT: after c++17, std::iterator is deperated
@@ -156,9 +156,21 @@ class World {
   auto view() -> typename basic_view<Args...>::entity_view {
     return typename basic_view<Args...>::entity_view{this};
   }
+
   template <typename... Args>
   auto debug_view() -> typename basic_view<Args...>::debug_view {
     return typename basic_view<Args...>::debug_view{this};
+  }
+
+  template <typename T>
+  auto has(const EntityId &id) -> bool {
+    invalidate(id);
+    return entities_.at(id.id).components_mask_.test(mpl::index_of_v<T, ComponentList>);
+  }
+
+  auto get(const EntityId &id) -> Entity & {
+    invalidate(id);
+    return entities_.at(id.id);
   }
 
  private:
