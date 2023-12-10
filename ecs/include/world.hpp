@@ -27,13 +27,14 @@ class World {
   using ComponentHandle = ComponentHandle<TSettings, T>;
   using EntityId = typename Entity::Id;
 
+ private:
   template <typename... Args>
-  class component_view;
+  class basic_view;
 
   template <typename Pred, typename... Args>
   class basic_iterator {  // HINT: after c++17, std::iterator is deperated
    public:
-    using value_type = typename component_view<Args...>::value_type;
+    using value_type = typename basic_view<Args...>::value_type;
     using type = basic_iterator<Pred, Args...>;
     basic_iterator(World *world, uint32_t i) : world_(world), i_(i) {
       next();
@@ -60,6 +61,9 @@ class World {
     auto next() -> void {
       for (; i_ < entity_count_; i_++) {
         auto entity = world_->entities_.at(i_);
+        if (world_->entities_.at(i_).id_.version != world_->entity_version_.at(i_)) {  // dead entity
+          continue;
+        }
         static_assert(std::is_same_v<std::invoke_result_t<Pred, Entity>, bool>, "pred is not invokable");
         if (std::invoke(Pred{}, entity)) {
           break;
@@ -73,32 +77,44 @@ class World {
   };
 
   template <typename... Args>
-  class component_view {
-    struct Pred {
+  struct basic_view {
+    friend class basic_iterator<Args...>;
+    using value_type = std::tuple<std::remove_reference_t<Args> &...>;
+
+    template <typename Pred>
+    class view_internal {
+     public:
+      view_internal(World<TSettings> *world) : world_(world) {}
+      auto begin() -> basic_iterator<Pred, Args...> {
+        return basic_iterator<Pred, Args...>{world_, 0};
+      }
+      auto end() -> basic_iterator<Pred, Args...> {
+        return basic_iterator<Pred, Args...>(world_, entity_count_);
+      }
+
+     protected:
+      World<TSettings> *world_;
+    };
+
+    struct AllPred {
       auto operator()(const Entity &entity) {
-        return (component_view<Args...>::mask_ & entity.components_mask_) == component_view<Args...>::mask_;
+        return true;
       }
     };
-    friend class basic_iterator<Pred, Args...>;
+    struct AlivePred {
+      auto operator()(const Entity &entity) {
+        return (mask_ & entity.components_mask_) == mask_;
+      }
+    };
 
-   public:
-    using value_type = std::tuple<std::remove_reference_t<Args> &...>;
-    component_view(World<TSettings> *world) : world_(world) {}
-    auto begin() -> basic_iterator<Pred, Args...> {
-      return basic_iterator<Pred, Args...>{world_, 0};
-    }
-    auto end() -> basic_iterator<Pred, Args...> {
-      return basic_iterator<Pred, Args...>(world_, entity_count_);
-    }
-
-   private:
-    World<TSettings> *world_;
     inline constexpr static uint32_t mask_value_ =
         mpl::index_sequence_v<mpl::index_of_v<std::decay_t<Args>, ComponentList>...>;
     inline static std::bitset<ComponentList::size> mask_ = std::bitset<ComponentList::size>(mask_value_);
-  };
 
-  // debug view
+   public:
+    using debug_view = view_internal<AllPred>;
+    using entity_view = view_internal<AlivePred>;
+  };
 
  public:
   World();
@@ -128,11 +144,22 @@ class World {
       if (entity_version_[i] != entities_[i].id_.version) {
         continue;
       }
-      std::invoke(f, entities_[i], i);
+      if constexpr (std::is_invocable_v<F, Entity, uint32_t>) {
+        std::invoke(f, entities_[i], i);
+      } else {
+        assert(false);
+      }
     }
   }
+
   template <typename... Args>
-  auto view() -> component_view<Args...>;
+  auto view() -> typename basic_view<Args...>::entity_view {
+    return typename basic_view<Args...>::entity_view{this};
+  }
+  template <typename... Args>
+  auto debug_view() -> typename basic_view<Args...>::debug_view {
+    return typename basic_view<Args...>::debug_view{this};
+  }
 
  private:
   auto invalidate(const EntityId &id) -> void {
@@ -170,12 +197,6 @@ template <typename TSettings>
   entities_.at(entity_count_) = std::move(Entity{id, this});
   entity_count_++;
   return id;
-}
-
-template <typename TSettings>
-template <typename... Args>
-auto World<TSettings>::view() -> component_view<Args...> {
-  return component_view<Args...>{this};
 }
 
 template <typename TSettings>

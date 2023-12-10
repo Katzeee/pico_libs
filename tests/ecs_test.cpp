@@ -75,7 +75,7 @@ TEST(ECS_TEST, ENTITY_DESTROY) {
     world.destroy(id);
   }
   uint32_t count = 0;
-  world.each([&world, &count](auto &&e, uint32_t i) {
+  world.each([&](auto &&e, uint32_t i) {
     count++;
     ASSERT_EQ(e.GetId().id, i);
     ASSERT_EQ(e.GetId().version, 0);
