@@ -1,6 +1,6 @@
 #include <iostream>
+#include <pico_libs/ecs/world.hpp>
 #include <random>
-#include <world.hpp>
 
 #include "gtest/gtest.h"
 using namespace xac;
