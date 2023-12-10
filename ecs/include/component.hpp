@@ -8,12 +8,10 @@ class World;
 template <typename TSettings, typename T>
 class ComponentHandle {
  public:
-  using EntityId = Entity<TSettings>::Id;
+  using EntityId = typename Entity<TSettings>::Id;
   using World = World<TSettings>;
 
-  auto operator*() -> T& {
-     
-  }
+  auto operator*() -> T& {}
 
   ComponentHandle(EntityId id, World* world) : id_(id), world_(world) {}
 

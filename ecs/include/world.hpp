@@ -27,15 +27,15 @@ class World {
   using ComponentHandle = ComponentHandle<TSettings, T>;
   using EntityId = typename Entity::Id;
 
-  template <typename...>
+  template <typename... Args>
   class component_view;
 
-  template <typename... Args>
-  class component_iterator {  // HINT: after c++17, std::iterator is deperated
+  template <typename Pred, typename... Args>
+  class basic_iterator {  // HINT: after c++17, std::iterator is deperated
    public:
     using value_type = typename component_view<Args...>::value_type;
-    using type = component_iterator<Args...>;
-    component_iterator(World *world, uint32_t i) : world_(world), i_(i) {
+    using type = basic_iterator<Pred, Args...>;
+    basic_iterator(World *world, uint32_t i) : world_(world), i_(i) {
       next();
     }
     auto operator*() -> value_type {
@@ -51,7 +51,7 @@ class World {
       next();
       return *this;
     }
-    friend auto operator==(const component_iterator<Args...> &lhs, const component_iterator<Args...> &rhs) -> bool {
+    friend auto operator==(const type &lhs, const type &rhs) -> bool {
       assert(lhs.world_ == rhs.world_);
       return lhs.i_ == rhs.i_;
     }
@@ -59,8 +59,9 @@ class World {
    private:
     auto next() -> void {
       for (; i_ < entity_count_; i_++) {
-        if ((component_view<Args...>::mask_ & world_->entities_.at(i_).components_mask_) ==
-            component_view<Args...>::mask_) {
+        auto entity = world_->entities_.at(i_);
+        static_assert(std::is_same_v<std::invoke_result_t<Pred, Entity>, bool>, "pred is not invokable");
+        if (std::invoke(Pred{}, entity)) {
           break;
         }
       }
@@ -73,20 +74,23 @@ class World {
 
   template <typename... Args>
   class component_view {
-    friend class component_iterator<Args...>;
+    struct Pred {
+      auto operator()(const Entity &entity) {
+        return (component_view<Args...>::mask_ & entity.components_mask_) == component_view<Args...>::mask_;
+      }
+    };
+    friend class basic_iterator<Pred, Args...>;
 
    public:
     using value_type = std::tuple<std::remove_reference_t<Args> &...>;
-    // using value_type = std::tuple<Args &&...>;
     component_view(World<TSettings> *world) : world_(world) {}
-    auto begin() -> component_iterator<Args...> {
-      return component_iterator<Args...>{world_, 0};
+    auto begin() -> basic_iterator<Pred, Args...> {
+      return basic_iterator<Pred, Args...>{world_, 0};
     }
-    auto end() -> component_iterator<Args...> {
-      return component_iterator<Args...>(world_, entity_count_);
+    auto end() -> basic_iterator<Pred, Args...> {
+      return basic_iterator<Pred, Args...>(world_, entity_count_);
     }
 
-   private:
    private:
     World<TSettings> *world_;
     inline constexpr static uint32_t mask_value_ =
