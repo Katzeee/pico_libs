@@ -22,10 +22,10 @@ class World {
   using ComponentList = typename TSettings::ComponentList;
   template <typename... Args>
   using TupleOfVectors = std::tuple<std::vector<Args>...>;
-  using Entity = Entity<TSettings>;
+  using ThisEntity = Entity<TSettings>;
   template <typename T>
   using ComponentHandle = ComponentHandle<TSettings, T>;
-  using EntityId = typename Entity::Id;
+  using EntityId = typename ThisEntity::Id;
 
  private:
   template <typename... Args>
@@ -64,7 +64,7 @@ class World {
         if (world_->entities_.at(i_).id_.version != world_->entity_version_.at(i_)) {  // dead entity
           continue;
         }
-        static_assert(std::is_same_v<std::invoke_result_t<Pred, Entity>, bool>, "pred is not invokable");
+        static_assert(std::is_same_v<std::invoke_result_t<Pred, ThisEntity>, bool>, "pred is not invokable");
         if (std::invoke(Pred{}, entity)) {
           break;
         }
@@ -97,12 +97,12 @@ class World {
     };
 
     struct AllPred {
-      auto operator()(const Entity &entity) {
+      auto operator()(const ThisEntity &entity) {
         return true;
       }
     };
     struct AlivePred {
-      auto operator()(const Entity &entity) {
+      auto operator()(const ThisEntity &entity) {
         return (mask_ & entity.components_mask_) == mask_;
       }
     };
@@ -144,7 +144,7 @@ class World {
       if (entity_version_[i] != entities_[i].id_.version) {
         continue;
       }
-      if constexpr (std::is_invocable_v<F, Entity, uint32_t>) {
+      if constexpr (std::is_invocable_v<F, ThisEntity, uint32_t>) {
         std::invoke(f, entities_[i], i);
       } else {
         assert(false);
@@ -168,7 +168,7 @@ class World {
     return entities_.at(id.id).components_mask_.test(mpl::index_of_v<T, ComponentList>);
   }
 
-  auto get(const EntityId &id) -> Entity & {
+  auto get(const EntityId &id) -> ThisEntity & {
     invalidate(id);
     return entities_.at(id.id);
   }
@@ -187,7 +187,7 @@ class World {
 
  private:
   mpl::rename<TupleOfVectors, ComponentList> components_pool_;
-  std::vector<Entity> entities_;
+  std::vector<ThisEntity> entities_;
   std::vector<uint32_t> entity_version_;
   inline static uint32_t entity_count_ = 0;
 };
@@ -206,7 +206,7 @@ template <typename TSettings>
   id.id = entity_count_;
   // should only increment when destroy an entity?
   id.version = entity_version_.at(entity_count_);
-  entities_.at(entity_count_) = std::move(Entity{id, this});
+  entities_.at(entity_count_) = std::move(ThisEntity{id, this});
   entity_count_++;
   return id;
 }

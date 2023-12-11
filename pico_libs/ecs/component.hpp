@@ -9,14 +9,14 @@ template <typename TSettings, typename T>
 class ComponentHandle {
  public:
   using EntityId = typename Entity<TSettings>::Id;
-  using World = World<TSettings>;
+  using ThisWorld = World<TSettings>;
 
   auto operator*() -> T& {}
 
-  ComponentHandle(EntityId id, World* world) : id_(id), world_(world) {}
+  ComponentHandle(EntityId id, ThisWorld* world) : id_(id), world_(world) {}
 
  private:
   EntityId id_;
-  World* world_ = nullptr;
+  ThisWorld* world_ = nullptr;
 };
 }  // namespace xac::ecs

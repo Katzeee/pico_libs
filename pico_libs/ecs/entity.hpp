@@ -12,19 +12,19 @@ class Entity {
  public:
   friend class World<TSettings>;
   using ComponentList = typename TSettings::ComponentList;
-  using World = World<TSettings>;
+  using ThisWorld = World<TSettings>;
   struct Id {
     uint32_t id;
     uint32_t version;
   };
   Entity() = default;
-  Entity(Id id, World* world);
+  Entity(Id id, ThisWorld* world);
 
  public:
   auto GetId() -> Id {
     return id_;
   }
-  auto GetWorld() -> World* {
+  auto GetWorld() -> ThisWorld* {
     return world_;
   }
   auto GetComponentsMask() {
@@ -33,10 +33,10 @@ class Entity {
 
  private:
   Id id_;
-  World* world_ = nullptr;
+  ThisWorld* world_ = nullptr;
   std::bitset<TSettings::ComponentList::size> components_mask_;
 };
 
 template <typename TSettings>
-Entity<TSettings>::Entity(Id id, World* world) : id_(id), world_(world) {}
+Entity<TSettings>::Entity(Id id, ThisWorld* world) : id_(id), world_(world) {}
 }  // namespace xac::ecs
