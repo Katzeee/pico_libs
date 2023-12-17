@@ -173,6 +173,13 @@ class World {
     return entities_.at(id.id);
   }
 
+  template <typename T>
+  auto get(const EntityId &id) -> T & {
+    static_assert(TSettings::template has_component<T>(), "type is not in component list");
+    invalidate(id);
+    return std::get<mpl::index_of_v<T, ComponentList>>(components_pool_).at(id.id);
+  }
+
  private:
   auto invalidate(const EntityId &id) -> void {
     // TODO: freelist

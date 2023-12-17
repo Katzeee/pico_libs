@@ -11,7 +11,15 @@ class ComponentHandle {
   using EntityId = typename Entity<TSettings>::Id;
   using ThisWorld = World<TSettings>;
 
-  auto operator*() -> T& {}
+  auto operator*() -> T& {
+    return world_->template get<T>(id_);
+  }
+  auto operator->() -> T* {
+    return &world_->template get<T>(id_);
+  }
+  auto get() -> T* {
+    return &world_->template get<T>(id_);
+  }
 
   ComponentHandle(EntityId id, ThisWorld* world) : id_(id), world_(world) {}
 

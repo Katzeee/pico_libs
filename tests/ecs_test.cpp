@@ -86,13 +86,31 @@ TEST(ECS_TEST, ENTITY_DESTROY) {
 }
 
 TEST(ECS_TEST, COMPONENT_ASSIGN) {
-  using CListC = mpl::type_list<Position, Acc, Rotation>;
-  using SettingsC = ecs::Settings<CListC>;
-  ecs::World<SettingsC> world;
+  using CListD = mpl::type_list<Position>;
+  using SettingsD = ecs::Settings<CListD>;
+  ecs::World<SettingsD> world;
+  auto e = world.create();
+  ASSERT_EQ(e.id, 0);
+  ASSERT_EQ(e.version, 0);
+  Position p = {1, 2, 3};
+  auto pc = world.assign<Position>(e, p);
+  ASSERT_EQ(p, *pc);
+  pc->x = 2;
+  p.x = 2;
+  ASSERT_EQ(p, *pc);
+  reinterpret_cast<Position *>(pc.get())->y = 3;
+  p.y = 3;
+  ASSERT_EQ(p, *pc);
+}
+
+TEST(ECS_TEST, COMPONENT_TRAVERSE) {
+  using CListD = mpl::type_list<Position, Acc, Rotation>;
+  using SettingsD = ecs::Settings<CListD>;
+  ecs::World<SettingsD> world;
 
   std::uniform_int_distribution<uint32_t> rand_int(500, 500000);
   uint32_t entity_count = rand_int(seed);
-  std::vector<ecs::Entity<SettingsC>::Id> entities;
+  std::vector<ecs::Entity<SettingsD>::Id> entities;
   for (uint32_t i = 0; i < entity_count; i++) {
     auto e = world.create();
     entities.push_back(e);
@@ -108,7 +126,7 @@ TEST(ECS_TEST, COMPONENT_ASSIGN) {
   for (uint32_t i = 0; i < entity_count; i++) {
     auto &e = entities[i];
     auto position = world.assign<Position>(e, 1, 2, 3);
-    static_assert(std::is_same_v<decltype(position), ecs::ComponentHandle<SettingsC, Position>>);
+    static_assert(std::is_same_v<decltype(position), ecs::ComponentHandle<SettingsD, Position>>);
     ASSERT_EQ(e.id, i);
     ASSERT_EQ(e.version, 0);
   }
@@ -152,7 +170,7 @@ TEST(ECS_TEST, COMPONENT_ASSIGN) {
   for (uint32_t i = 0; i < entity_count / 2; i++) {
     auto &e = entities[i];
     auto rotation = world.assign<Rotation>(e, 7, 8, 9);
-    static_assert(std::is_same_v<decltype(rotation), ecs::ComponentHandle<SettingsC, Rotation>>);
+    static_assert(std::is_same_v<decltype(rotation), ecs::ComponentHandle<SettingsD, Rotation>>);
     ASSERT_EQ(e.id, i);
     ASSERT_EQ(e.version, 0);
   }
