@@ -86,7 +86,26 @@ TEST(ECS_TEST, ENTITY_DESTROY) {
 }
 
 TEST(ECS_TEST, COMPONENT_ASSIGN) {
-  using CListD = mpl::type_list<Position>;
+  using CListD = mpl::type_list<Position, int>;
+  using SettingsD = ecs::Settings<CListD>;
+  ecs::World<SettingsD> world;
+  auto e = world.create();
+  ASSERT_EQ(e.id, 0);
+  ASSERT_EQ(e.version, 0);
+  Position p = {1, 2, 3};
+  auto pc = world.assign<Position>(e, p);
+  static_assert(std::is_same_v<decltype(*pc), Position &>);
+  ASSERT_EQ(p, *pc);
+  pc->x = 2;
+  p.x = 2;
+  ASSERT_EQ(p, *pc);
+  reinterpret_cast<Position *>(pc.get())->y = 3;
+  p.y = 3;
+  ASSERT_EQ(p, *pc);
+}
+
+TEST(ECS_TEST, COMPONENT_GET) {
+  using CListD = mpl::type_list<Position, float>;
   using SettingsD = ecs::Settings<CListD>;
   ecs::World<SettingsD> world;
   auto e = world.create();
@@ -101,6 +120,8 @@ TEST(ECS_TEST, COMPONENT_ASSIGN) {
   reinterpret_cast<Position *>(pc.get())->y = 3;
   p.y = 3;
   ASSERT_EQ(p, *pc);
+  auto fc = world.get<float>(e);
+  ASSERT_EQ(fc.get(), nullptr);
 }
 
 TEST(ECS_TEST, COMPONENT_TRAVERSE) {

@@ -182,7 +182,11 @@ class World {
   auto get_ptr(const EntityId &id) -> T * {
     static_assert(TSettings::template has_component<T>(), "type is not in component list");
     invalidate(id);
-    return &std::get<mpl::index_of_v<T, ComponentList>>(components_pool_).at(id.id);
+    constexpr uint32_t index = mpl::index_of_v<T, ComponentList>;
+    if (entities_[id.id].components_mask_.test(index)) {
+      return &std::get<index>(components_pool_).at(id.id);
+    }
+    return nullptr;
   }
 
  private:
