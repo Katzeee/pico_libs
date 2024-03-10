@@ -97,16 +97,23 @@ class World {
     };
 
     // always return all entities
-    struct AllPred {
+    struct DebugPred {
       auto operator()(const ThisEntity &entity) {
         return true;
       }
     };
 
-    // only return entities whose components list match the input components list
-    struct AlivePred {
+    // return entities whose components list is the subset of the input components list
+    struct FuzzyPred {
       auto operator()(const ThisEntity &entity) {
         return (mask_ & entity.components_mask_) == mask_;
+      }
+    };
+
+    // only return entities whose components list exactly match the input components list
+    struct ExactPred {
+      auto operator()(const ThisEntity &entity) {
+        return mask_ == entity.components_mask_;
       }
     };
 
@@ -116,8 +123,9 @@ class World {
     inline static std::bitset<ComponentList::size> mask_ = std::bitset<ComponentList::size>(mask_value_);
 
    public:
-    using debug_view = view_internal<AllPred>;
-    using entity_view = view_internal<AlivePred>;
+    using debug_view = view_internal<DebugPred>;
+    using fuzzy_view = view_internal<FuzzyPred>;
+    using exact_view = view_internal<ExactPred>;
   };
 
  public:
@@ -158,8 +166,13 @@ class World {
   }
 
   template <typename... Args>
-  auto view() -> typename basic_view<Args...>::entity_view {
-    return typename basic_view<Args...>::entity_view{this};
+  auto fuzzy_view() -> typename basic_view<Args...>::fuzzy_view {
+    return typename basic_view<Args...>::fuzzy_view{this};
+  }
+
+  template <typename... Args>
+  auto exact_view() -> typename basic_view<Args...>::exact_view {
+    return typename basic_view<Args...>::exact_view{this};
   }
 
   template <typename... Args>

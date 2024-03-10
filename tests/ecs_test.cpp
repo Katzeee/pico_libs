@@ -160,7 +160,7 @@ TEST(ECS_TEST, COMPONENT_TRAVERSE) {
     ASSERT_EQ(world.has<Rotation>(e.GetId()), false);
   });
   {
-    auto view = world.view<Position>();
+    auto view = world.fuzzy_view<Position>();
     auto it = view.begin();
     static_assert(std::is_same_v<decltype(*it), std::tuple<Position &>>);
     uint32_t count = 0;
@@ -175,7 +175,7 @@ TEST(ECS_TEST, COMPONENT_TRAVERSE) {
     ASSERT_EQ(count, entity_count);
   }
   {
-    auto view = world.view<Position>();
+    auto view = world.fuzzy_view<Position>();
     auto it = view.begin();
     static_assert(std::is_same_v<decltype(*it), std::tuple<Position &>>);
     uint32_t count = 0;
@@ -196,7 +196,7 @@ TEST(ECS_TEST, COMPONENT_TRAVERSE) {
     ASSERT_EQ(e.version, 0);
   }
   {
-    auto view = world.view<Rotation, Position>();
+    auto view = world.fuzzy_view<Rotation, Position>();
     auto it = view.begin();
     static_assert(std::is_same_v<decltype(*it), std::tuple<Rotation &, Position &>>);
     uint32_t count = 0;
@@ -211,13 +211,15 @@ TEST(ECS_TEST, COMPONENT_TRAVERSE) {
     ASSERT_EQ(count, entity_count / 2);
   }
   {
-    auto view = world.view<const Position, Acc>();
+    auto view = world.fuzzy_view<const Position, Acc>();
     auto it = view.begin();
     static_assert(std::is_same_v<decltype(*it), std::tuple<const Position &, Acc &>>);
   }
   {
-    auto view = world.view<Acc &&, Rotation &>();
+    auto view = world.fuzzy_view<Acc &&, Rotation &>();
     auto it = view.begin();
     static_assert(std::is_same_v<decltype(*it), std::tuple<Acc &, Rotation &>>);
   }
 }
+
+// TODO: test exact view
