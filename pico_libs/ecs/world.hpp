@@ -96,17 +96,21 @@ class World {
       World<TSettings> *world_;
     };
 
+    // always return all entities
     struct AllPred {
       auto operator()(const ThisEntity &entity) {
         return true;
       }
     };
+
+    // only return entities whose components list match the input components list
     struct AlivePred {
       auto operator()(const ThisEntity &entity) {
         return (mask_ & entity.components_mask_) == mask_;
       }
     };
 
+    // TODO: only support at most 32 component types
     inline constexpr static uint32_t mask_value_ =
         mpl::index_sequence_v<mpl::index_of_v<std::decay_t<Args>, ComponentList>...>;
     inline static std::bitset<ComponentList::size> mask_ = std::bitset<ComponentList::size>(mask_value_);
@@ -120,6 +124,7 @@ class World {
   World();
   auto create() -> EntityId;
 
+  // TODO: free list
   auto destroy(const EntityId &id) -> void {
     invalidate(id);
     entity_version_[id.id]++;
