@@ -1,4 +1,5 @@
 #include <experimental/type_traits>
+#include <pico_libs/mpl/bitset.hpp>
 #include <pico_libs/mpl/type_list.hpp>
 using namespace xac;
 
@@ -39,4 +40,22 @@ TEST(MPL_TEST, TYPE_LIST) {
 
   static_assert(std::is_same_v<mpl::rename<std::tuple, TestTypeList>, TestTuple>);
   static_assert(std::is_same_v<mpl::rename<mpl::type_list, TestTuple>, TestTypeList>);
+}
+
+TEST(MPL_TEST, BIT_LIST) {
+  ASSERT_EQ(
+      std::string_view(mpl::index_bits_str_v<10, 1, 2, 3>.data()), std::string_view("00"
+                                                                                    "00001110")
+  );
+  ASSERT_EQ(
+      std::string_view(mpl::index_bits_str_v<72, 1, 2, 3, 71>.data()), std::string_view("10000000"
+                                                                                        "00000000"
+                                                                                        "00000000"
+                                                                                        "00000000"
+                                                                                        "00000000"
+                                                                                        "00000000"
+                                                                                        "00000000"
+                                                                                        "00000000"
+                                                                                        "00001110")
+  );
 }

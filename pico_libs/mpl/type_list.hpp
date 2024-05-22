@@ -10,7 +10,7 @@ struct type_list {
 };
 
 template <typename T, typename TList>
-struct index_of {};
+struct index_of;
 
 template <typename T, template <typename...> class TList, typename... Tail>
 struct index_of<T, TList<T, Tail...>> : std::integral_constant<uint64_t, 0> {};
@@ -43,7 +43,7 @@ using type_at_t = typename type_at<N, TList>::type;
 
 namespace __detail {
 template <template <typename...> class U, typename T>
-struct rename {};
+struct rename;
 template <template <typename...> class U, template <typename...> class T, typename... Args>
 struct rename<U, T<Args...>> : std::common_type<U<Args...>> {};
 }  // namespace __detail
@@ -63,10 +63,5 @@ struct contains<T, TList<Head, Rest...>> : contains<T, TList<Rest...>> {};
 template <typename T, typename TList>
 inline constexpr bool contains_v = contains<T, TList>::value;
 
-template <uint64_t... I>
-struct index_sequence : std::integral_constant<uint64_t, ((1 << I) | ...)> {};
-
-template <uint64_t... I>
-inline constexpr uint64_t index_sequence_v = index_sequence<I...>::value;
 
 }  // namespace xac::mpl
