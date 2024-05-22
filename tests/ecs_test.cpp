@@ -45,7 +45,7 @@ TEST(ECS_TEST, ENTITY_CREATE) {
   for (uint64_t i = 0; i < entity_count; i++) {
     auto e = world.create();
     entities.push_back(e);
-    ASSERT_EQ(e.id, i);
+    ASSERT_EQ(e.index, i);
     ASSERT_EQ(e.version, 0);
   }
 }
@@ -63,7 +63,7 @@ TEST(ECS_TEST, ENTITY_DESTROY) {
   for (uint32_t i = 0; i < entity_count; i++) {
     auto e = world.create();
     entities.push_back(e);
-    ASSERT_EQ(e.id, i);
+    ASSERT_EQ(e.index, i);
     ASSERT_EQ(e.version, 0);
   }
   std::set<uint32_t> entity_destroy{};
@@ -77,7 +77,7 @@ TEST(ECS_TEST, ENTITY_DESTROY) {
   uint32_t count = 0;
   world.each([&](auto &&e, uint32_t i) {
     count++;
-    ASSERT_EQ(e.GetId().id, i);
+    ASSERT_EQ(e.GetId().index, i);
     ASSERT_EQ(e.GetId().version, 0);
     ASSERT_EQ(e.GetWorld(), &world);
     ASSERT_EQ(e.GetComponentsMask().to_string(), "0");
@@ -85,12 +85,28 @@ TEST(ECS_TEST, ENTITY_DESTROY) {
   ASSERT_EQ(count, entity_count - entity_destroy.size());
 }
 
+TEST(ECS_TEST, ENRIRY_RECREATE) {
+  using CurSettings = ecs::Settings<mpl::type_list<int, float>>;
+
+  ecs::World<CurSettings> world;
+  auto e = world.create();
+  auto _ = world.assign<int>(e, 0);
+  ASSERT_EQ(e.index, 0);
+  ASSERT_EQ(e.version, 0);
+  ASSERT_EQ(world.get(e).GetComponentsMask().to_string(), "01");
+  world.destroy(e);
+  e = world.create();
+  ASSERT_EQ(e.index, 0);
+  ASSERT_EQ(e.version, 1);
+  ASSERT_EQ(world.get(e).GetComponentsMask().to_string(), "00");
+}
+
 TEST(ECS_TEST, COMPONENT_ASSIGN1) {
   using CListD = mpl::type_list<Position, int>;
   using SettingsD = ecs::Settings<CListD>;
   ecs::World<SettingsD> world;
   auto e = world.create();
-  ASSERT_EQ(e.id, 0);
+  ASSERT_EQ(e.index, 0);
   ASSERT_EQ(e.version, 0);
   Position p = {1, 2, 3};
   auto pc = world.assign<Position>(e, p);
@@ -244,7 +260,7 @@ TEST(ECS_TEST, COMPONENT_ASSIGN2) {
         C111, C112, C113, C114, C115, C116, C117, C118, C119, C120, C121, C122, C123, C124, C125, C126, C127, C128>>;
     ecs::World<CurSetting> world;
     auto e = world.create();
-    ASSERT_EQ(e.id, 0);
+    ASSERT_EQ(e.index, 0);
     ASSERT_EQ(e.version, 0);
 
     auto p1 = world.assign<C68>(e);
@@ -278,7 +294,7 @@ TEST(ECS_TEST, COMPONENT_GET) {
   using SettingsD = ecs::Settings<CListD>;
   ecs::World<SettingsD> world;
   auto e = world.create();
-  ASSERT_EQ(e.id, 0);
+  ASSERT_EQ(e.index, 0);
   ASSERT_EQ(e.version, 0);
   Position p = {1, 2, 3};
   auto pc = world.assign<Position>(e, p);
@@ -293,7 +309,7 @@ TEST(ECS_TEST, COMPONENT_GET) {
   ASSERT_EQ(fc.get(), nullptr);
 }
 
-TEST(ECS_TEST, COMPONENT_TRAVERSE) {
+TEST(ECS_TEST, COMPONENT_FUZZY_VIEW) {
   using CListD = mpl::type_list<Position, Acc, Rotation>;
   using SettingsD = ecs::Settings<CListD>;
   ecs::World<SettingsD> world;
@@ -304,11 +320,11 @@ TEST(ECS_TEST, COMPONENT_TRAVERSE) {
   for (uint32_t i = 0; i < entity_count; i++) {
     auto e = world.create();
     entities.push_back(e);
-    ASSERT_EQ(e.id, i);
+    ASSERT_EQ(e.index, i);
     ASSERT_EQ(e.version, 0);
   }
   world.each([&world](auto &&e, uint32_t i) {
-    ASSERT_EQ(e.GetId().id, i);
+    ASSERT_EQ(e.GetId().index, i);
     ASSERT_EQ(e.GetId().version, 0);
     ASSERT_EQ(e.GetWorld(), &world);
     ASSERT_EQ(e.GetComponentsMask().to_string(), "000");
@@ -317,11 +333,11 @@ TEST(ECS_TEST, COMPONENT_TRAVERSE) {
     auto &e = entities[i];
     auto position = world.assign<Position>(e, 1, 2, 3);
     static_assert(std::is_same_v<decltype(position), ecs::ComponentHandle<SettingsD, Position>>);
-    ASSERT_EQ(e.id, i);
+    ASSERT_EQ(e.index, i);
     ASSERT_EQ(e.version, 0);
   }
   world.each([&world](auto &&e, uint32_t i) {
-    ASSERT_EQ(e.GetId().id, i);
+    ASSERT_EQ(e.GetId().index, i);
     ASSERT_EQ(e.GetId().version, 0);
     ASSERT_EQ(e.GetWorld(), &world);
     ASSERT_EQ(e.GetComponentsMask().to_string(), "001");
@@ -361,7 +377,7 @@ TEST(ECS_TEST, COMPONENT_TRAVERSE) {
     auto &e = entities[i];
     auto rotation = world.assign<Rotation>(e, 7, 8, 9);
     static_assert(std::is_same_v<decltype(rotation), ecs::ComponentHandle<SettingsD, Rotation>>);
-    ASSERT_EQ(e.id, i);
+    ASSERT_EQ(e.index, i);
     ASSERT_EQ(e.version, 0);
   }
   {

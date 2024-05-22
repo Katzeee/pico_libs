@@ -14,10 +14,14 @@ class Entity {
   using ComponentList = typename TSettings::ComponentList;
   using ThisWorld = World<TSettings>;
   struct Id {
-    uint64_t id;
+    uint64_t index;
     uint64_t version;
   };
   Entity() = default;
+  // Entity(const Entity& e) noexcept = default;
+  // Entity(Entity&& e) noexcept = default;
+  // Entity& operator=(const Entity& e) = default;
+  // Entity& operator=(Entity&& e) noexcept = default;
   Entity(Id id, ThisWorld* world);
 
  public:
