@@ -14,8 +14,8 @@ class Entity {
   using ComponentList = typename TSettings::ComponentList;
   using ThisWorld = World<TSettings>;
   struct Id {
-    uint32_t id;
-    uint32_t version;
+    uint64_t id;
+    uint64_t version;
   };
   Entity() = default;
   Entity(Id id, ThisWorld* world);

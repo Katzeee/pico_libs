@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <functional>
 #include <numeric>
+#include <pico_libs/mpl/bitset.hpp>
 #include <pico_libs/mpl/type_list.hpp>
 #include <vector>
 
@@ -14,7 +15,7 @@ namespace xac::ecs {
 template <typename TSettings>
 class Entity;
 
-constexpr static uint32_t kInitSize = 200;
+constexpr static uint64_t kInitSize = 100000;
 
 template <typename TSettings>
 class World {
@@ -36,7 +37,7 @@ class World {
    public:
     using value_type = typename basic_view<Args...>::value_type;
     using type = basic_iterator<Pred, Args...>;
-    basic_iterator(World *world, uint32_t i) : world_(world), i_(i) {
+    basic_iterator(World *world, uint64_t i) : world_(world), i_(i) {
       next();
     }
     auto operator*() -> value_type {
@@ -64,7 +65,7 @@ class World {
         if (world_->entities_.at(i_).id_.version != world_->entity_version_.at(i_)) {  // dead entity
           continue;
         }
-        static_assert(std::is_same_v<std::invoke_result_t<Pred, ThisEntity>, bool>, "pred is not invokable");
+        static_assert(std::is_same_v<std::invoke_result_t<Pred, ThisEntity>, bool>, "pred is not returning bool value");
         if (std::invoke(Pred{}, entity)) {
           break;
         }
@@ -73,7 +74,7 @@ class World {
 
    private:
     World<TSettings> *world_;
-    uint32_t i_;
+    uint64_t i_;
   };
 
   template <typename... Args>
@@ -117,10 +118,10 @@ class World {
       }
     };
 
-    // TODO: only support at most 32 component types
-    inline constexpr static uint32_t mask_value_ =
-        mpl::index_sequence_v<mpl::index_of_v<std::decay_t<Args>, ComponentList>...>;
-    inline static std::bitset<ComponentList::size> mask_ = std::bitset<ComponentList::size>(mask_value_);
+    inline constexpr static auto mask_value_ =
+        mpl::index_bits_str_v<ComponentList::size, mpl::index_of_v<std::decay_t<Args>, ComponentList>...>;
+    inline static std::bitset<ComponentList::size> mask_ =
+        std::bitset<ComponentList::size>(mask_value_.data(), ComponentList::size);
 
    public:
     using debug_view = view_internal<DebugPred>;
@@ -153,11 +154,11 @@ class World {
   // TODO: use if constexpr to filter F
   template <typename F>
   auto each(F &&f) {
-    for (uint32_t i = 0; i < entity_count_; i++) {
+    for (uint64_t i = 0; i < entity_count_; i++) {
       if (entity_version_[i] != entities_[i].id_.version) {
         continue;
       }
-      if constexpr (std::is_invocable_v<F, ThisEntity, uint32_t>) {
+      if constexpr (std::is_invocable_v<F, ThisEntity, uint64_t>) {
         std::invoke(f, entities_[i], i);
       } else {
         assert(false);
@@ -200,7 +201,7 @@ class World {
   auto get_ptr(const EntityId &id) -> T * {
     static_assert(TSettings::template has_component<T>(), "type is not in component list");
     invalidate(id);
-    constexpr uint32_t index = mpl::index_of_v<T, ComponentList>;
+    constexpr uint64_t index = mpl::index_of_v<T, ComponentList>;
     if (entities_[id.id].components_mask_.test(index)) {
       return &std::get<index>(components_pool_).at(id.id);
     }
@@ -222,8 +223,8 @@ class World {
  private:
   mpl::rename<TupleOfVectors, ComponentList> components_pool_;
   std::vector<ThisEntity> entities_;
-  std::vector<uint32_t> entity_version_;
-  inline static uint32_t entity_count_ = 0;
+  std::vector<uint64_t> entity_version_;
+  inline static uint64_t entity_count_ = 0;
 };
 
 template <typename TSettings>
@@ -263,7 +264,7 @@ auto World<TSettings>::prepare_entity_create() -> void {
   assert(entities_.size() == entity_version_.size());
   if (entity_count_ >= entities_.size()) {
     // FIX: may out of bound
-    assert(entity_count_ * 2 <= std::numeric_limits<uint32_t>::max());
+    assert(entity_count_ * 2 <= std::numeric_limits<uint64_t>::max());
     entities_.resize(entity_count_ * 2, {});  // HINT: must be resize, because you will use index
     entity_version_.resize(entity_count_ * 2);
   }
